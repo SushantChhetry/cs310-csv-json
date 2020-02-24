@@ -3,6 +3,7 @@ package edu.jsu.mcis;
 import java.io.*;
 import java.util.*;
 import com.opencsv.*;
+import static java.lang.Integer.parseInt;
 import org.json.simple.*;
 import org.json.simple.parser.*;
 
@@ -63,11 +64,49 @@ public class Converter {
         
         try {
             
-            CSVReader reader = new CSVReader(new StringReader(csvString));
-            List<String[]> full = reader.readAll();
-            Iterator<String[]> iterator = full.iterator();
+            CSVReader reader = new CSVReader(new StringReader(csvString));  //we create a StringReader(a standard Java class for reading character streams) and use it to create an OpenCSVCSVReader
+            List<String[]> full = reader.readAll();                         //Once this is done, we can invoke its readAll()method to parse the string to a Listof string arrays:
+            Iterator<String[]> iterator = full.iterator();                  //We can create an Iteratorfor it
             
             // INSERT YOUR CODE HERE
+            JSONObject jsonObject = new JSONObject();      
+            
+            String[] record;
+            
+           
+            JSONArray recordsArray = new JSONArray();                                // Container for all records
+            JSONArray colHeader = new JSONArray();                              //Container for the column header
+            JSONArray rowHeader = new JSONArray();                              //Container for the row Header i.e. the IDs
+            
+            String [] headings = iterator.next();                               //Use the iterator to retrieve the first string array, containing the column headers of the original file, from the structure
+            
+            for ( int i = 0 ; i<headings.length; ++i)                           //Add the column headings in the column heading container
+            {
+                colHeader.add(headings[i]);
+            }
+            
+            while(iterator.hasNext()) {
+                
+                JSONArray tempArray = new JSONArray();
+                
+                record = iterator.next();                                       //Get nect record
+                
+                rowHeader.add(record[0]);                                       //Get the first elements of the records which is the ID add them to container
+                
+                for(int i = 1 ; i < (record.length)-1; ++i) {                     // Iterate through column headings
+                
+                    int data = parseInt(record[i]);
+                    tempArray.add(data);
+                
+                }
+                recordsArray.add(tempArray);
+            }
+            
+            jsonObject.put("colHeader", colHeader);
+            jsonObject.put("rowHeader",rowHeader);
+            jsonObject.put("data",recordsArray);
+            
+            results = JSONValue.toJSONString(jsonObject);
             
         }        
         catch(Exception e) { return e.toString(); }
@@ -83,10 +122,41 @@ public class Converter {
         try {
 
             StringWriter writer = new StringWriter();
-            CSVWriter csvWriter = new CSVWriter(writer, ',', '"', '\n');
+            CSVWriter csvWriter = new CSVWriter(writer, ',', '"', '\n');     //StringWriterfor writing character-based streams, and use it to initialize an OpenCSVCSVWriter
             
             // INSERT YOUR CODE HERE
             
+            JSONParser parser = new JSONParser();
+            JSONObject jsonObject =  (JSONObject) parser.parse(jsonString);
+                                    
+            JSONArray colArray = (JSONArray) jsonObject.get("colHeaders");
+            JSONArray rowArray = (JSONArray) jsonObject.get("rowHeaders");
+            JSONArray dataArray = (JSONArray) jsonObject.get("data");
+            
+            int colLength = colArray.size();
+            int length = dataArray.size();
+            
+            String [] firstLine= new String[colLength];  //this will contain the colHeader
+            for(int i = 0 ; i < colLength ; ++i)           // add the first line of headings into the array
+            {
+                firstLine[i] = (String) colArray.get(i);
+            }
+            
+            csvWriter.writeNext(firstLine);
+            
+            for (int i = 0 ; i < length; ++i)
+            {
+                JSONArray data = (JSONArray) dataArray.get(i);
+                String [] rows = new String[data.size()+1];
+                rows[0] = (String) rowArray.get(i);
+                
+                for(int j = 0; j < data.size(); ++j) {
+                    rows[j+1] = Long.toString((long) data.get(j));
+                }
+                csvWriter.writeNext(rows);
+            }
+            
+            results= writer.toString();  //After all the data has been parsed, we can export the parsed data to a CSV string as follows:
         }
         
         catch(Exception e) { return e.toString(); }
